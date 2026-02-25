@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <title>Gestão de Banca Black Edition</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        :root {
+            --bg-dark: #0f0f0f;
+            --card-default: #1a1a1a;
+            --sport-purple: #7b2cbf; /* Roxo Claro Vibrante */
+            --forex-orange: #e65100; /* Laranja Escuro */
+            --win: #00e676;
+            --loss: #ff1744;
+            --text-main: #ffffff;
+        }
+
+        body { 
+            font-family: 'Segoe UI', Arial, sans-serif; 
+            background: var(--bg-dark); 
+            color: var(--text-main); 
+            margin: 0; 
+            padding: 20px; 
+        }
+        
+        /* Abas */
+        .tabs { display: flex; gap: 5px; margin-bottom: 0; }
+        .tab-btn { 
+            padding: 12px 25px; cursor: pointer; border: none; 
+            border-radius: 8px 8px 0 0; font-weight: bold; 
+            background: #222; color: #777; transition: 0.3s; 
+        }
+        .tab-btn.active.sport { background: var(--sport-purple); color: white; }
+        .tab-btn.active.forex { background: var(--forex-orange); color: white; }
+
+        .content { 
+            display: none; background: #151515; 
+            padding: 25px; border-radius: 0 10px 10px 10px; 
+            border: 1px solid #222;
+        }
+        .content.active { display: block; }
+
+        /* Dashboard - AS CAIXAS QUE VOCÊ QUER MUDAR */
+        .dashboard { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-bottom: 25px; }
+        
+        /* Estilo das Caixas (Cards) */
+        .card { 
+            padding: 20px; border-radius: 12px; text-align: center; 
+            transition: background 0.5s ease;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+        }
+
+        /* Cores das Caixas por Aba */
+        .sport .card { background: var(--sport-purple); }
+        .forex .card { background: var(--forex-orange); }
+
+        .card h3 { margin: 0; font-size: 0.75em; text-transform: uppercase; letter-spacing: 1px; opacity: 0.9; color: white; }
+        .card p { margin: 10px 0 0; font-size: 1.6em; font-weight: bold; color: white; }
+        
+        /* Input de Banca Inicial dentro do Card */
+        .card input { 
+            background: rgba(255,255,255,0.15); border: 1px solid rgba(255,255,255,0.3); 
+            color: white; padding: 5px; border-radius: 4px; width: 80%; text-align: center; font-size: 1em; margin-top: 5px;
+        }
+
+        /* Lógica de Cor do Texto de Lucro */
+        .profit-text.positive { color: var(--win) !important; text-shadow: 0 0 10px rgba(0,230,118,0.3); }
+        .profit-text.negative { color: var(--loss) !important; text-shadow: 0 0 10px rgba(255,23,68,0.3); }
+
+        /* Meta e Entradas */
+        .meta-container { background: #1a1a1a; padding: 15px; border-radius: 8px; margin-bottom: 20px; border: 1px solid #333; }
+        .progress-bg { background: #333; height: 10px; border-radius: 5px; margin-top: 10px; }
+        .progress-bar { height: 100%; width: 0%; transition: 0.5s; border-radius: 5px; background: white; }
+
+        .entry-box { display: flex; gap: 15px; align-items: flex-end; background: #1a1a1a; padding: 20px; border-radius: 8px; margin-bottom: 20px; border: 1px solid #333; }
+        .entry-box input { background: #252525; border: 1px solid #444; color: white; padding: 10px; border-radius: 4px; width: 100px; }
+
+        /* Tabela */
+        table { width: 100%; border-collapse: collapse; background: #1a1a1a; border-radius: 8px; overflow: hidden; }
+        th { background: #000; color: #666; padding: 12px; text-align: left; }
+        td { padding: 12px; border-bottom: 1px solid #252525; }
+
+        .btn-action { padding: 10px 20px; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; transition: 0.2s; }
+        .btn-winn { background: var(--win); color: #000; }
+        .btn-red { background: var(--loss); color: white; }
+        .btn-del { background: none; color: #ff5252; border: 1px solid #ff5252; padding: 4px 8px; border-radius: 4px; cursor: pointer; }
+
+        .chart-container { height: 250px; margin-bottom: 20px; background: #1a1a1a; padding: 15px; border-radius: 8px; border: 1px solid #333; }
+    </style>
+</head>
+<body>
+
+    <div class="tabs">
+        <button id="btn-tab-sport" class="tab-btn active sport" onclick="openTab('sport')">Apostas Esportivas</button>
+        <button id="btn-tab-forex" class="tab-btn forex" onclick="openTab('forex')">Forex</button>
+    </div>
+
+    <div id="sport" class="content active sport">
+        <div class="dashboard">
+            <div class="card"><h3>Banca Inicial</h3><input type="number" id="init-sport" value="1000" onchange="updateAll('sport')"></div>
+            <div class="card"><h3>Saldo Atual</h3><p id="curr-sport">R$ 1000.00</p></div>
+            <div class="card"><h3>Lucro Total</h3><p id="profit-sport" class="profit-text">R$ 0.00</p></div>
+            <div class="card"><h3>Crescimento</h3><p id="grow-sport">0%</p></div>
+        </div>
+
+        <div class="meta-container">
+            <strong>Meta Diária (R$):</strong> <input type="number" id="meta-sport" value="100" style="width: 80px;" onchange="updateAll('sport')">
+            <div class="progress-bg"><div id="bar-sport" class="progress-bar"></div></div>
+        </div>
+
+        <div class="entry-box">
+            <div><label>Valor Entrada</label><br><input type="number" id="in-val-sport" placeholder="0.00"></div>
+            <div><label>Odd</label><br><input type="number" id="in-odd-sport" value="1.90"></div>
+            <button class="btn-action btn-winn" onclick="addTrade('sport', 'Winn')">WINN</button>
+            <button class="btn-action btn-red" onclick="addTrade('sport', 'Red')">RED</button>
+        </div>
+        <div class="chart-container"><canvas id="chart-sport"></canvas></div>
+        <table id="tbl-sport"><thead><tr><th>#</th><th>Entrada</th><th>Status</th><th>Lucro</th><th>Ação</th></tr></thead><tbody id="table-sport"></tbody></table>
+    </div>
+
+    <div id="forex" class="content forex">
+        <div class="dashboard">
+            <div class="card"><h3>Banca Inicial ($)</h3><input type="number" id="init-forex" value="500" onchange="updateAll('forex')"></div>
+            <div class="card"><h3>Saldo Atual</h3><p id="curr-forex">$ 500.00</p></div>
+            <div class="card"><h3>Lucro Total</h3><p id="profit-forex" class="profit-text">$ 0.00</p></div>
+            <div class="card"><h3>Crescimento</h3><p id="grow-forex">0%</p></div>
+        </div>
+
+        <div class="meta-container">
+            <strong>Meta Diária ($):</strong> <input type="number" id="meta-forex" value="50" style="width: 80px;" onchange="updateAll('forex')">
+            <div class="progress-bg"><div id="bar-forex" class="progress-bar"></div></div>
+        </div>
+
+        <div class="entry-box">
+            <div><label>Risco $</label><br><input type="number" id="in-val-forex" placeholder="0.00"></div>
+            <div><label>Payoff</label><br><input type="number" id="in-odd-forex" value="1.0"></div>
+            <button class="btn-action btn-winn" style="background: white; color: black;" onclick="addTrade('forex', 'Gain')">GAIN</button>
+            <button class="btn-action btn-red" onclick="addTrade('forex', 'Loss')">LOSS</button>
+        </div>
+        <div class="chart-container"><canvas id="chart-forex"></canvas></div>
+        <table><thead><tr><th>#</th><th>Risco</th><th>Status</th><th>Lucro</th><th>Ação</th></tr></thead><tbody id="table-forex"></tbody></table>
+    </div>
+
+    <script>
+        const store = { sport: [], forex: [] };
+        const charts = { sport: null, forex: null };
+
+        function openTab(type) {
+            document.querySelectorAll('.content, .tab-btn').forEach(el => el.classList.remove('active'));
+            document.getElementById(type).classList.add('active');
+            document.getElementById(`btn-tab-${type}`).classList.add('active');
+            updateChart(type);
+        }
+
+        function addTrade(type, status) {
+            const valEl = document.getElementById(`in-val-${type}`);
+            const oddEl = document.getElementById(`in-odd-${type}`);
+            const val = parseFloat(valEl.value);
+            const odd = parseFloat(oddEl.value) || 1;
+            if (!val || val <= 0) return;
+
+            let profit = (status === 'Winn' || status === 'Gain') ? (type === 'sport' ? val * (odd - 1) : val * odd) : -val;
+            store[type].push({ id: Date.now(), val, status, profit });
+            valEl.value = ''; // Limpa campo
+            renderTable(type);
+            updateAll(type);
+        }
+
+        function deleteTrade(type, id) {
+            store[type] = store[type].filter(t => t.id !== id);
+            renderTable(type);
+            updateAll(type);
+        }
+
+        function renderTable(type) {
+            const tbody = document.getElementById(`table-${type}`);
+            tbody.innerHTML = '';
+            store[type].slice().reverse().forEach((t, i) => {
+                tbody.innerHTML += `<tr><td>${store[type].length - i}</td><td>${t.val.toFixed(2)}</td><td style="color:${t.profit>=0?'#00e676':'#ff1744'}">${t.status}</td><td>${t.profit.toFixed(2)}</td><td><button class="btn-del" onclick="deleteTrade('${type}',${t.id})">Excluir</button></td></tr>`;
+            });
+        }
+
+        function updateAll(type) {
+            const init = parseFloat(document.getElementById(`init-${type}`).value) || 0;
+            const meta = parseFloat(document.getElementById(`meta-${type}`).value) || 1;
+            const totalProfit = store[type].reduce((acc, t) => acc + t.profit, 0);
+            
+            // Lucro Total e Cor Dinâmica
+            const pEl = document.getElementById(`profit-${type}`);
+            pEl.innerText = (type === 'sport' ? 'R$ ' : '$ ') + totalProfit.toFixed(2);
+            pEl.className = 'profit-text ' + (totalProfit > 0 ? 'positive' : totalProfit < 0 ? 'negative' : '');
+
+            document.getElementById(`curr-${type}`).innerText = (type === 'sport' ? 'R$ ' : '$ ') + (init + totalProfit).toFixed(2);
+            document.getElementById(`grow-${type}`).innerText = (init !== 0 ? (totalProfit / init) * 100 : 0).toFixed(2) + '%';
+            
+            const perc = Math.min(Math.max((totalProfit / meta) * 100, 0), 100);
+            document.getElementById(`bar-${type}`).style.width = perc + '%';
+            updateChart(type);
+        }
+
+        function updateChart(type) {
+            const init = parseFloat(document.getElementById(`init-${type}`).value) || 0;
+            const ctx = document.getElementById(`chart-${type}`).getContext('2d');
+            let bal = init;
+            const data = [init, ...store[type].map(t => bal += t.profit)];
+            if (charts[type]) charts[type].destroy();
+            charts[type] = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: data.map((_,i)=>i),
+                    datasets: [{ label: 'Banca', data: data, borderColor: 'white', backgroundColor: 'rgba(255,255,255,0.1)', fill: true, tension: 0.3 }]
+                },
+                options: { responsive: true, maintainAspectRatio: false, scales: { y: { grid: { color: '#333' }, ticks: { color: '#888' } }, x: { display: false } }, plugins: { legend: { display: false } } }
+            });
+        }
+
+        updateChart('sport');
+        updateChart('forex');
+    </script>
+</body>
+</html>
